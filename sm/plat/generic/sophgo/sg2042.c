@@ -6,6 +6,8 @@
  *
  */
 
+#include "../include/thead/c9xx_errata.h"
+#include "../include/thead/c9xx_pmu.h"
 #include <platform_override.h>
 #include <sbi/sbi_const.h>
 #include <sbi/sbi_domain.h>
@@ -14,8 +16,6 @@
 #include <sbi/sbi_string.h>
 #include <sbi_utils/fdt/fdt_helper.h>
 #include <sbi_utils/timer/aclint_mtimer.h>
-#include <thead/c9xx_errata.h>
-#include <thead/c9xx_pmu.h>
 
 #define SOPHGO_SG2042_TIMER_BASE 0x70ac000000ULL
 #define SOPHGO_SG2042_TIMER_SIZE 0x10000UL
@@ -33,8 +33,8 @@ static int sophgo_sg2042_early_init(bool cold_boot,
     return sbi_domain_root_add_memrange(
         (ulong)SOPHGO_SG2042_TIMER_BASE,
         SOPHGO_SG2042_TIMER_SIZE * SOPHGO_SG2042_TIMER_NUM, MTIMER_REGION_ALIGN,
-        (SBI_DOMAIN_MEMREGION_MMIO | SBI_DOMAIN_MEMREGION_M_READABLE |
-         SBI_DOMAIN_MEMREGION_M_WRITABLE));
+        (SBI_DOMAIN_MEMREGION_MMIO | SBI_DOMAIN_MEMREGION_READABLE |
+         SBI_DOMAIN_MEMREGION_WRITEABLE));
 
   return 0;
 }
