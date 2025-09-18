@@ -4,13 +4,18 @@
 //------------------------------------------------------------------------------
 #include <cstdio>
 #include <edge_call.h>
+#include <fcntl.h>
 #include <keystone.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 extern "C" {
 #include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/include/readalias.h"
 #include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/readalias.c"
+#include "/home/alouka/Documents/repos/badram-riscv/common-code/include/parse_pagemap.h"
+#include "/home/alouka/Documents/repos/badram-riscv/common-code/parse_pagemap.c"
 }
 unsigned long print_string(char *str);
 void print_string_wrapper(void *buffer);
@@ -28,7 +33,9 @@ unsigned long print_string(char *str) {
 }
 
 int main(int argc, char **argv) {
+
   open_kmod();
+
   Keystone::Enclave enclave;
   Keystone::Params params;
 
@@ -90,8 +97,13 @@ void print_string_wrapper(void *buffer) {
       printf("Error\n");
       return;
     }
-    if (memcmp(buf, test_buff, 0x1000) == 0)
-      printf("\nBuffer at j: [%llx]\n", j);
+
+    if (memcmp(buf, test_buff, 0x1000) == 0) {
+      uintptr_t phys_addr;
+      pid_t pid = getpid();
+      if (virt_to_phys_user(&phys_addr, pid, j))
+        printf("\nBuffer j physical addr at: [%llx]\n", phys_addr);
+    }
     // else if (!(j % (10 % 4096)))
     //  printf(".");
     // for (int i = 0; i < 4096; i++) {

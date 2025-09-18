@@ -28,3 +28,13 @@ unsigned long ocall_print_string(char *string) {
   ocall(OCALL_PRINT_STRING, pt, sizeof(pt), &retval, sizeof(unsigned long));
   return retval;
 }
+/*
+ *
+ * Verifying archive integrity... MD5 checksums are OK. All good.
+ * Uncompressing Keystone Enclave Package
+ * Buffer pointer: 0x3f87eb4000
+ * Reading secret with badram
+ * Buffer at j: [905442000]
+ * Buffer at j: [905443000]
+ * Error
+ * */
