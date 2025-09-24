@@ -27,8 +27,22 @@ int keystone_create_enclave(struct file *filep, unsigned long arg) {
   enclp->epm_paddr = enclave->epm->pa;
   enclp->epm_size = enclave->epm->size;
 
-  printk("Enclave Physical Address: %p -- size: %llu\n", enclave->epm->pa,
-         enclave->epm->size);
+  printk("Enclave Paddr: [%pa] -- Vaddr [%px] -- size: [0x%016zx] -- is-cma: "
+         "[%s]\n",
+         (phys_addr_t *)&enclave->epm->pa, (void *)enclave->epm->ptr,
+         enclave->epm->size, enclave->epm->is_cma == 0 ? "false" : "true");
+
+  //  printk("Enclave Paddr: [%pa] -- Vaddr [%px] -- size: [%zu] -- is cma:
+  //  [%d]\n",
+  //         &enclave->epm->pa, enclave->epm->ptr, enclave->epm->size,
+  //         enclave->epm->is_cma);
+  //
+  //  printk("Enclave Paddr: [%llx] -- Vaddr [%llx]  -- size: [%llu] -- is cma:
+  //  "
+  //         "[%d]\n",
+  //
+  //         enclave->epm->pa, enclave->epm->ptr, enclave->epm->size,
+  //         enclave->epm->is_cma);
   /* allocate UID */
   enclp->eid = enclave_idr_alloc(enclave);
 
