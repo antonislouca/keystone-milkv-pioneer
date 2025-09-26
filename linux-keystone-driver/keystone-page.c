@@ -85,28 +85,6 @@ int epm_init(struct epm *epm, unsigned int min_pages) {
   return 0;
 }
 
-// NOTE: For reference
-//   uintptr_t kernel_va_to_pa(void* ptr)
-//{
-//    return (uintptr_t) ptr - kernel_offset;
-//  }
-//
-//   uintptr_t __va(uintptr_t pa)
-//{
-//    return (pa - load_pa_start) + EYRIE_LOAD_START;
-//  }
-//
-//   uintptr_t __pa(uintptr_t va)
-//{
-//    return (va - EYRIE_LOAD_START) + load_pa_start;
-//  }
-//
-//  FROM file: vm_defs.h
-//  #define EYRIE_LOAD_START 0xffffffff00000000
-//
-//  FROM file: boot.c
-//    load_pa_start = dram_base;
-//
 int utm_destroy(struct utm *utm) {
 
   if (utm->ptr != NULL) {

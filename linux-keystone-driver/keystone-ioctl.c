@@ -10,6 +10,21 @@
 #include <linux/uaccess.h>
 
 int __keystone_destroy_enclave(unsigned int ueid);
+void __enclave_info(struct enclave *enclave);
+void __enclave_info(struct enclave *enclave) {
+  printk("Enclave Information:\n");
+  printk("EPM:\n"
+         "\tRoot page table: [%llx]\n\tPaddr: [%llx]\n\tVaddr: [%llx]\n\tSize: "
+         "[%llu]\n\tIs-cma: [%s]\n\tOrder: [%llu]\n",
+         enclave->epm->root_page_table, (unsigned long long)enclave->epm->pa,
+         (unsigned long long)enclave->epm->ptr, enclave->epm->size,
+         enclave->epm->is_cma == 0 ? "false" : "true", enclave->epm->order);
+
+  printk("UTM:\n"
+         "\tRoot page table: [%llx]\n\tPTR: [%llx]\n\tSize: [%llu]",
+         enclave->utm->root_page_table, (unsigned long long)enclave->utm->ptr,
+         enclave->utm->size);
+}
 
 int keystone_create_enclave(struct file *filep, unsigned long arg) {
   /* create parameters */
@@ -27,22 +42,6 @@ int keystone_create_enclave(struct file *filep, unsigned long arg) {
   enclp->epm_paddr = enclave->epm->pa;
   enclp->epm_size = enclave->epm->size;
 
-  printk("Enclave Paddr: [%pa] -- Vaddr [%px] -- size: [0x%016zx] -- is-cma: "
-         "[%s]\n",
-         (phys_addr_t *)&enclave->epm->pa, (void *)enclave->epm->ptr,
-         enclave->epm->size, enclave->epm->is_cma == 0 ? "false" : "true");
-
-  //  printk("Enclave Paddr: [%pa] -- Vaddr [%px] -- size: [%zu] -- is cma:
-  //  [%d]\n",
-  //         &enclave->epm->pa, enclave->epm->ptr, enclave->epm->size,
-  //         enclave->epm->is_cma);
-  //
-  //  printk("Enclave Paddr: [%llx] -- Vaddr [%llx]  -- size: [%llu] -- is cma:
-  //  "
-  //         "[%d]\n",
-  //
-  //         enclave->epm->pa, enclave->epm->ptr, enclave->epm->size,
-  //         enclave->epm->is_cma);
   /* allocate UID */
   enclp->eid = enclave_idr_alloc(enclave);
 
@@ -118,6 +117,7 @@ int keystone_run_enclave(unsigned long data) {
   ueid = arg->eid;
   enclave = get_enclave_by_id(ueid);
 
+  __enclave_info(enclave);
   if (!enclave) {
     keystone_err("invalid enclave id\n");
     return -EINVAL;

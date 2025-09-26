@@ -11,13 +11,15 @@
 
 unsigned long ocall_print_string(char *string);
 
-char __attribute__((aligned(0x1000))) secret[0x2000];
+char __attribute__((aligned(0x1000))) secret[0x1000];
 
 int *pt = (int *)secret;
 
 int main() {
-  memset(secret, 'A', 0x2000);
+  memset(secret, 'A', 0x1000);
 
+  uint32_t deadbeef = 0xdeadbeef;
+  memcpy(secret + 0, &deadbeef, sizeof(deadbeef));
   ocall_print_string("Hello World");
 
   EAPP_RETURN(0);

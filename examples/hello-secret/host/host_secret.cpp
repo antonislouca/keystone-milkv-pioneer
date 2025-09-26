@@ -2,6 +2,7 @@
 // Copyright (c) 2018, The Regents of the University of California (Regents).
 // All Rights Reserved. See LICENSE for license details.
 //------------------------------------------------------------------------------
+#include <cstdint>
 #include <cstdio>
 #include <edge_call.h>
 #include <keystone.h>
@@ -84,35 +85,47 @@ void reading_secret() {
   }
 }
 
-void dump_enclave_mem() {
-  printf("Badram memory dump...\n");
-  char buf[0x1000] = {0};
-  page_stats_t stats;
-  u_int64_t enclave_end = (0x0000000107000000 + 0x200000 + 0x1000);
-
-  FILE *fp = fopen("hello-secret.log", "w");
-  if (!fp) {
-    printf("Error: Opening file...\n");
-    return;
-  }
-
-  for (uint64_t j = 0x200000000; j < 0x1000000000; j += 0x1000) {
-    // for (uint64_t j = 0x107000000; j < enclave_end; j += 0x1000) {
-
-    /*copy content of the page to buf using physical address*/
-    if (memcpy_frompa(buf, j, 0x1000, &stats, true) != 0) {
-      // printf("PAddr reading Error\n");
-      // return ;
-      continue;
-    }
-
-    fprintf(fp, "Page at [%p]: \n", j);
-    for (char val : buf)
-      fprintf(fp, "%d ", val);
-    fprintf(fp, "\n");
-  }
+void print_page(char buf[0x1000], uint64_t addr) {
+  printf("Page at [%llx]: \n", addr);
+  for (int val = 0; val < 0x1000; val++)
+    printf("%c ", buf[val]);
+  printf("\n");
 }
 
+void dump_enclave_mem() {
+  printf("Badram memory dump...\n");
+  memset(test_buff, 'A', 0x1000);
+  char buf[0x1000] = {0};
+  page_stats_t stats;
+  uint64_t alias_mask = 0x800000000;
+  // start address and end address is after 512 pages
+  uint64_t enclave_start = 0x108c00000 ^ alias_mask;
+  uint64_t enclave_end = (enclave_start + (512 * 0x1000));
+
+  uint32_t deadbeef = 0xdeadbeef;
+  memcpy(test_buff, &deadbeef, sizeof(deadbeef));
+
+  // if size is 0x200000 >> 12 = 0x200 = 512 pages
+  // 2097152 = 512 * 4096
+  // 0x200000000
+  // 0x80000 0000
+  // for (uint64_t Paddr = 0x200000000; Paddr < 0x1000000000; Paddr += 0x1000) {
+  for (uint64_t Paddr = enclave_start; Paddr < enclave_end; Paddr += 0x1000) {
+
+    /*copy content of the page to buf using physical address*/
+    if (memcpy_frompa(buf, Paddr, 0x1000, &stats, true) != 0) {
+      printf("PAddr reading Error\n");
+      return;
+      // continue;
+    }
+
+    print_page(buf, Paddr);
+    /* compare page with test buffer*/
+    // if (memcmp(buf, test_buff, 0x1000) == 0) {
+    //   print_page(buf, Paddr);
+    // }
+  }
+}
 /***
  * Example edge-wrapper function. These are currently hand-written
  * wrappers, but will have autogeneration tools in the future.
