@@ -88,7 +88,7 @@ void reading_secret() {
 void print_page(char buf[0x1000], uint64_t addr) {
   printf("Page at [%llx]: \n", addr);
   for (int val = 0; val < 0x1000; val++)
-    printf("%c ", buf[val]);
+    printf("%x ", buf[val]);
   printf("\n");
 }
 
@@ -99,8 +99,9 @@ void dump_enclave_mem() {
   page_stats_t stats;
   uint64_t alias_mask = 0x800000000;
   // start address and end address is after 512 pages
-  uint64_t enclave_start = 0x108c00000 ^ alias_mask;
-  uint64_t enclave_end = (enclave_start + (512 * 0x1000));
+  uint64_t enclave_start = 0x108c00000;
+  uint64_t enclave_start_alias = enclave_start ^ alias_mask;
+  uint64_t enclave_end_alias = (enclave_start_alias + (512 * 0x1000));
 
   uint32_t deadbeef = 0xdeadbeef;
   memcpy(test_buff, &deadbeef, sizeof(deadbeef));
@@ -110,7 +111,8 @@ void dump_enclave_mem() {
   // 0x200000000
   // 0x80000 0000
   // for (uint64_t Paddr = 0x200000000; Paddr < 0x1000000000; Paddr += 0x1000) {
-  for (uint64_t Paddr = enclave_start; Paddr < enclave_end; Paddr += 0x1000) {
+  for (uint64_t Paddr = enclave_start_alias; Paddr < enclave_end_alias;
+       Paddr += 0x1000) {
 
     /*copy content of the page to buf using physical address*/
     if (memcpy_frompa(buf, Paddr, 0x1000, &stats, true) != 0) {
