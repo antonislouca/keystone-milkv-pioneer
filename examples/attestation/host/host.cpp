@@ -1,26 +1,8 @@
 //******************************************************************************
 // Copyright (c) 2018, The Regents of the University of California (Regents).
 // All Rights Reserved. See LICENSE for license details.
-// [SM] Initializing ... hart [0]
-//[SM] Keystone security monitor has been initialized!
-// 5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
-// Booting from Security Monitor
-//============ PUBKEY =============
-// 5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b
-// 87878787969696962e2e2e2e3f3f3f3f
-//=================================
-//=========== PRIVKEY =============
-// 5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
-// 5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f015a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b8787878796969696
-//
-//=================================
-//=========== SIGNATURE ===========
-// 5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b
-// 87878787969696962e2e2e2e3f3f3f3f
-// 5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b
-// 87878787969696962e2e2e2e3f3f3f3f
-//=================================
 //------------------------------------------------------------------------------
+
 #include "host.h"
 
 #include <getopt.h>
@@ -190,11 +172,11 @@ void Host::print_buffer_wrapper(RunData &run_data) {
   }
 }
 
-bool check_pattern(char buf[0x1000]) {
+bool __check_pattern(char buf[0x1000]) {
 
-  char pattern[] = {0x5a, 0x5a, 0x5a, 0x5a, 0x3c, 0x3c, 0x3c, 0x3c,
-                    0x2d, 0x2d, 0x2d, 0x2d, 0x4b, 0x4b, 0x4b, 0x4b};
+  char pattern[] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
 
+  // uint64_t deadbeef = 0xdeadbeefcafebabe;
   size_t pattern_len = sizeof(pattern);
   for (int i = 0; i <= (0x1000 - pattern_len); i++) {
     if (memcmp(&buf[i], pattern, pattern_len) == 0)
@@ -203,22 +185,13 @@ bool check_pattern(char buf[0x1000]) {
   return false;
 }
 
-void print_page(char buf[0x1000], uint64_t addr) {
+void __print_page(char buf[0x1000], uint64_t addr) {
   printf("Page at [%llx]: \n", addr);
   for (int val = 0; val < 0x1000; val++)
     printf("%x ", buf[val]);
   printf("\n");
 }
-
-void Host::print_value_wrapper(RunData &run_data) {
-  SharedBuffer &shared_buffer = run_data.shared_buffer;
-
-  auto t = shared_buffer.get_unsigned_long_or_set_bad_offset();
-  if (t.has_value()) {
-    printf("Enclave said value: %u\n", t.value());
-    shared_buffer.set_ok();
-  }
-
+void __dump_memory() {
   // Just dump pages:
   char buf[4096] = {0};
   page_stats_t stats;
@@ -229,15 +202,25 @@ void Host::print_value_wrapper(RunData &run_data) {
     /*copy content of the page to buf using physical address*/
     if (memcpy_frompa(buf, paddr_candidate, 4096, &stats, true) != 0) {
       printf("PAddr reading Error\n");
-      // return ;
-      continue;
+      return;
+      // continue;
     }
     // compare page with public key
-    if (check_pattern(buf))
-      print_page(buf, paddr_candidate);
+    if (__check_pattern(buf))
+      __print_page(buf, paddr_candidate);
 
     // maybe compare with the public key to see that we can reach the page
     // the public key is in the report given by the enclave i beleive
+  }
+}
+
+void Host::print_value_wrapper(RunData &run_data) {
+  SharedBuffer &shared_buffer = run_data.shared_buffer;
+
+  auto t = shared_buffer.get_unsigned_long_or_set_bad_offset();
+  if (t.has_value()) {
+    printf("Enclave said value: %u\n", t.value());
+    shared_buffer.set_ok();
   }
   return;
 }
@@ -250,6 +233,8 @@ void Host::copy_report_wrapper(RunData &run_data) {
     run_data.report = std::make_unique<Report>(std::move(t.value()));
     shared_buffer.set_ok();
   }
+  // call to dump memory
+  __dump_memory();
   return;
 }
 
