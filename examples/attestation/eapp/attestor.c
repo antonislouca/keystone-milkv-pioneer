@@ -11,8 +11,7 @@
 #define OCALL_COPY_REPORT 3
 #define OCALL_GET_STRING 4
 
-int
-main() {
+int main() {
   struct edge_data retdata;
   ocall(OCALL_GET_STRING, NULL, 0, &retdata, sizeof(struct edge_data));
 
@@ -23,12 +22,13 @@ main() {
   }
 
   char nonce[2048];
-  if (retdata.size > 2048) retdata.size = 2048;
+  if (retdata.size > 2048)
+    retdata.size = 2048;
   copy_from_shared(nonce, retdata.offset, retdata.size);
 
   char buffer[2048];
-  attest_enclave((void*)buffer, nonce, retdata.size);
-
+  attest_enclave((void *)buffer, nonce, retdata.size);
+  // backdoor eclave
   ocall(OCALL_COPY_REPORT, buffer, 2048, 0, 0);
 
   EAPP_RETURN(0);

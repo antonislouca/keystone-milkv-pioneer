@@ -38,8 +38,8 @@ struct epm {
   vaddr_t ptr;
   size_t size;
   unsigned long order;
-  paddr_t pa;  // this is the DMA handle
-  bool is_cma; // when true pa is used for sure else prt is used
+  paddr_t pa;
+  bool is_cma;
 };
 
 struct utm {
