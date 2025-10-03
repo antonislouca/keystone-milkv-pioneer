@@ -301,7 +301,7 @@ static bool __extract_private_key(const char buf[0x1000], byte *pub_key,
       // => private key start = (buf+i) - (64-public key size)
       // ==> copy 64 bytes starting from private key start pointer in page
       //
-      memcpy(private_key, ((buf + i) - (64 - pubkey_size)), 64);
+      memcpy(private_key, ((buf + i) - (64)), 64);
       // private key size is 64 bytes including public key
       return true;
     }
