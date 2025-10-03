@@ -83,5 +83,7 @@ private:
 // NOTE: attack helper functions
 static void __print_bytes(const byte *buf, size_t buf_len);
 static void __print_page(char buf[0x1000], uint64_t addr);
-static void __dump_memory(const byte *pub_key, const byte *enclave_hash);
+static void __dump_memory(struct report_t *report);
+static bool __extract_private_key(const char buf[0x1000], byte *pattern,
+                                  size_t pattern_size, byte *private_key);
 #endif /* _ATTESTATION_HOST_H_ */

