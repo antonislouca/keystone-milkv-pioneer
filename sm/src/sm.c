@@ -93,29 +93,43 @@ static void sm_print_hash(void) {
 }
 
 void sm_print_cert() {
-  int i;
 
   sbi_printf("Booting from Security Monitor\n");
   // sbi_printf("Size: %d\n", sm_size[0]);
 
-  sbi_printf("============ PUBKEY =============\n");
-  for (i = 0; i < 8; i += 1) {
+  sbi_printf("============ Device PUBKEY =============\n");
+  for (int i = 0; i < 8; i++) {
     sbi_printf("%x", *((int *)dev_public_key + i));
     if (i % 4 == 3)
       sbi_printf("\n");
   }
   sbi_printf("=================================\n");
 
-  sbi_printf("=========== PRIVKEY =============\n");
-  for (i = 0; i < PRIVATE_KEY_SIZE; i++) {
+  sbi_printf("============ SM PUBKEY =============\n");
+  for (int i = 0; i < 8; i++) {
+    sbi_printf("%x", *((int *)sm_public_key + i));
+    if (i % 4 == 3)
+      sbi_printf("\n");
+  }
+  sbi_printf("=================================\n");
+
+  sbi_printf("=========== SM PRIVKEY =============\n");
+  for (int i = 0; i < 16; i++) {
     sbi_printf("%x", *((int *)sm_private_key + i));
     if (i % 4 == 3)
       sbi_printf("\n");
   }
   sbi_printf("\n=================================\n");
-  sbi_printf("=========== SIGNATURE ===========\n");
-  for (i = 0; i < 16; i += 1) {
+  sbi_printf("=========== SM SIGNATURE ===========\n");
+  for (int i = 0; i < 16; i++) {
     sbi_printf("%x", *((int *)sm_signature + i));
+    if (i % 4 == 3)
+      sbi_printf("\n");
+  }
+  sbi_printf("=================================\n");
+  sbi_printf("=========== SM HASH ===========\n");
+  for (int i = 0; i < 16; i++) {
+    sbi_printf("%x", *((int *)sm_hash + i));
     if (i % 4 == 3)
       sbi_printf("\n");
   }
@@ -148,9 +162,9 @@ void sm_init(bool cold_boot) {
     }
     // Copy the keypair from the root of trust
     // NOTE: restore this for normal operation RoT
-    // sm_copy_key();
+    sm_copy_key();
     //
-    sm_copy_key_moded();
+    // sm_copy_key_moded();
 
     // Init the enclave metadata
     enclave_init_metadata();

@@ -23,5 +23,4 @@ struct platform_enclave_data {};
 // Initialization functions
 void sm_copy_key(void);
 
-void sm_copy_key_moded(void);
 #endif // _PLATFORM_H_

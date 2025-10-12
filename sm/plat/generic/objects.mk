@@ -35,7 +35,7 @@ platform-objs-y += platform_override_modules.o
 
 # Blobs to build
 #NOTE: FW_TEXT_START MAY NEED TO BE CHANGED
-FW_TEXT_START=0x80000000
+FW_TEXT_START=0x00000000
 FW_DYNAMIC=y
 FW_JUMP=y
 ifeq ($(PLATFORM_RISCV_XLEN), 32)

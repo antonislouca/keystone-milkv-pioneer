@@ -1,4 +1,5 @@
 /* Default platform does nothing special here */
+#include "platform.h"
 #include "../../enclave.h"
 #include <sbi/sbi_string.h>
 
@@ -47,64 +48,6 @@ extern byte sm_public_key[PUBLIC_KEY_SIZE];
 extern byte sm_private_key[PRIVATE_KEY_SIZE];
 extern byte dev_public_key[PUBLIC_KEY_SIZE];
 
-// NOTE: modified SM copy for debug
-void sm_copy_key_moded(void) {
-  /* 0x0BADF00D0BADF00D*/
-  uint8_t badfood[8] = {0x0B, 0xAD, 0xF0, 0x0D, 0x0B, 0xAB, 0xF0, 0x0D};
-  /* 0xDEADFACEDEADFACE */
-  uint8_t deadface[8] = {0xDE, 0xAD, 0xFA, 0xCE, 0xDE, 0xAD, 0xFA, 0xCE};
-  /* 0xDEADBABEDEADBABE */
-  uint8_t deadbabe[8] = {0xDE, 0xAD, 0xBA, 0xBE, 0xDE, 0xAD, 0xBA, 0xBE};
-  /* 0xDEADBEEFCAFEBABE */
-  uint8_t deadbeef[8] = {0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE};
-  /* 0xDEADCAFEDEADCAFE */
-  uint8_t deadcafe[8] = {0xDE, 0xAD, 0xCA, 0xFE, 0xDE, 0xAD, 0xCA, 0xFE};
-
-  // add 0badf00d marking for sm hash
-  sbi_memcpy(sm_hash, sanctum_sm_hash, MDSIZE);
-  sbi_memcpy(sm_hash + 0, badfood, sizeof(badfood));
-
-  // adding deadfacedeadface to sm signature
-  sbi_memcpy(sm_signature, sanctum_sm_signature, SIGNATURE_SIZE);
-  sbi_memcpy(sm_signature + 0, deadface, sizeof(deadface));
-
-  // copy deadbabe marking to sm public key
-  sbi_memcpy(sm_public_key, sanctum_sm_public_key, PUBLIC_KEY_SIZE);
-  sbi_memcpy(sm_public_key + 0, deadbabe, sizeof(deadbabe));
-
-  // copy deadbeefcafebabe marking to sm private key
-  sbi_memcpy(sm_private_key, sanctum_sm_secret_key, PRIVATE_KEY_SIZE);
-  sbi_memcpy(sm_private_key + 0, deadbeef, sizeof(deadbeef));
-
-  // copy deadcafe for dev public key
-  sbi_memcpy(dev_public_key, sanctum_dev_public_key, PUBLIC_KEY_SIZE);
-  sbi_memcpy(dev_public_key + 0, deadcafe, sizeof(deadcafe));
-}
-/**
- *
- *[SM] Initializing ... hart [1]
- *[SM] Keystone security monitor has been initialized!
- *0df0ad0b0df0ad0b2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *Booting from Security Monitor
- *============ PUBKEY =============
- *deadcafedeadcafe2d2d2d2d4b4b4b4b
- *87878787969696962e2e2e2e3f3f3f3f
- *=================================
- *=========== PRIVKEY =============
- *cafebabedeadbeef2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *deadbabedeadbabe2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3fdeadcafedeadcafe2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *deadfacedeadface2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f
- *01badf00dbadf00d2d2d2d2d4b4b4b4b87878787969696962e2e2e2e3f3f3f3f5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b8787878796969696
- *
- *=================================
- *=========== SIGNATURE ===========
- *deadfacedeadface2d2d2d2d4b4b4b4b
- *87878787969696962e2e2e2e3f3f3f3f
- *5a5a5a5a3c3c3c3c2d2d2d2d4b4b4b4b
- *87878787969696962e2e2e2e3f3f3f3f
- *==================================================================
- */
-// NOTE:normal sm copy
 void sm_copy_key(void) {
   sbi_memcpy(sm_hash, sanctum_sm_hash, MDSIZE);
   sbi_memcpy(sm_signature, sanctum_sm_signature, SIGNATURE_SIZE);
