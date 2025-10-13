@@ -7,7 +7,7 @@ set(eyrie_plugins "none")
 
 
 if(NOT DEFINED fw_bin)
-   set(fw_bin ../../../images/fw_jump.bin)
+   set(fw_bin ../../../images/fw_dynamic.bin)
 endif()
 get_filename_component(fw_file ${fw_bin} NAME)
 set(package_script "./attestor-runner attestor eyrie-rt loader.bin --sm-bin ${fw_file}")
@@ -44,7 +44,7 @@ add_eyrie_runtime(${eapp_bin}-eyrie
 # add sm binary -- TODO: fix, should come from upper levels
 if(NOT DEFINED fw_bin)
   message(AUTHOR_WARNING "fw_bin should be defined by upper CMake files/ build system. Setting to default")
-  set(fw_bin ../../../images/fw_payload.bin)
+  set(fw_bin ../../../images/fw_dynamic.bin)
 endif()
 
 get_filename_component(fw_file ${fw_bin} NAME)

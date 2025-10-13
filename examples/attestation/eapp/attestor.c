@@ -28,7 +28,7 @@ int main() {
 
   char buffer[2048];
   attest_enclave((void *)buffer, nonce, retdata.size);
-  // backdoor eclave
+
   ocall(OCALL_COPY_REPORT, buffer, 2048, 0, 0);
 
   EAPP_RETURN(0);

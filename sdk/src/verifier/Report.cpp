@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+
 #include "ed25519/ed25519.h"
 
 using json11::Json;
@@ -123,12 +124,12 @@ Report::printPretty() {
 
 byte*
 Report::getEnclaveHash() {
-    return report.enclave.hash;
+  return report.enclave.hash;
 }
 
 byte*
 Report::getSmHash() {
-    return report.sm.hash;
+  return report.sm.hash;
 }
 
 int
@@ -142,6 +143,11 @@ Report::verify(
 
   int signature_valid = checkSignaturesOnly(dev_public_key);
 
+  printf(
+      "Enclave hash valid: %s, SM hash valid: %s, Signatures: %s\n",
+      encl_hash_valid == 1 ? "valid" : "invalid",
+      sm_hash_valid == 1 ? "valid" : "invalid",
+      signature_valid == 1 ? "valid" : "invalid");
   return encl_hash_valid && sm_hash_valid && signature_valid;
 }
 
@@ -161,6 +167,10 @@ Report::checkSignaturesOnly(const byte* dev_public_key) {
       MDSIZE + sizeof(uint64_t) + report.enclave.data_len,
       report.sm.public_key);
 
+  printf(
+      "Signatures Enclave valid: %s, SM valid: %s\n",
+      enclave_valid == 1 ? "valid" : "invalid",
+      sm_valid == 1 ? "valid" : "invalid");
   return sm_valid && enclave_valid;
 }
 
