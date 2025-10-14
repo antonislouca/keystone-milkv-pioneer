@@ -1,7 +1,9 @@
 set(eapp_bin attestor)
 set(eapp_src eapp/attestor.c)
 set(host_bin attestor-runner)
-set(host_src host/attestor-runner.cpp host/host.cpp host/verifier.cpp)
+set(host_src host/attestor-runner.cpp host/host.cpp)
+set(verifier_bin verifier)
+set(verifier_src remote-verifier/verifier.cpp)
 set(package_name "attestor.ke")
 set(eyrie_plugins "none")
 
@@ -34,6 +36,28 @@ target_include_directories(${host_bin}
   PUBLIC ${KEYSTONE_SDK_DIR}/include/edge
   PUBLIC ${KEYSTONE_SDK_DIR}/include/verifier)
 
+
+# verifier
+add_executable(${verifier_bin} ${verifier_src})
+
+target_link_libraries(${verifier_bin}
+ ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER}
+)
+
+set_target_properties(${verifier_bin}
+  PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO OUTPUT_NAME "verifier.bin"
+)
+target_include_directories(${verifier_bin}
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/common
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/host
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/verifier)
+
+if(NOT DEFINED fw_bin)
+  message(AUTHOR_WARNING "fw_bin should be defined by upper CMake files/ build system. Setting to default")
+  set(fw_bin ../../../images/fw_dynamic.bin)
+endif()
+
 # add target for Eyrie runtime (see keystone.cmake)
 
 set(eyrie_files_to_copy .options_log eyrie-rt loader.bin)
@@ -60,4 +84,4 @@ add_keystone_package(${eapp_bin}-package
 add_dependencies(${eapp_bin}-package ${eapp_bin}-eyrie)
 
 # add package to the top-level target
-add_dependencies(examples ${eapp_bin}-package)
+add_dependencies(examples ${eapp_bin}-package  ${verifier_bin})

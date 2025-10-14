@@ -15,7 +15,7 @@
 #include <string.h>
 #include <string>
 
-#include "host.h"
+#include "../host/host.h"
 #include "host/hash_util.hpp"
 #include "host/keystone.h"
 #include "verifier/report.h"
@@ -24,8 +24,22 @@
 void Verifier::run() {
   const std::string nonce = std::to_string(random() % 0x100000000);
   printf("Nonce: %s\n", nonce.c_str());
-  Host host(params_, eapp_file_, rt_file_, ld_file_);
-  Report report = host.run(nonce);
+
+  printf("[Verifier] Waiting for report\n");
+  std::string input;
+  std::string line;
+
+  while (std::getline(std::cin, line)) {
+    input += line + "\n";
+  }
+
+  if (input.empty()) {
+    printf("[Verifier] No input provided. Exiting.\n");
+    return;
+  }
+
+  Report report;
+  report.fromJson(input);
   verify_report(report, nonce);
 }
 
@@ -131,4 +145,24 @@ void Verifier::debug_verify(Report &report, const byte *dev_public_key) {
   } else {
     printf("Attestation report is invalid\n");
   }
+}
+
+int main(int argc, char *argv[]) {
+
+  printf("[Verifier]...\n");
+  if (argc != 5) {
+    printf("[Verifier] Not enough arguments provided\n");
+    return -1;
+  }
+
+  const std::string eapp_file = argv[1];
+  const std::string rt_file = argv[2];
+  const std::string ld_file = argv[3];
+  const std::string sm_bin_file = argv[4];
+
+  // create and run the verifier with the arguments
+  Verifier verifier{eapp_file, rt_file, ld_file, sm_bin_file};
+  verifier.run();
+
+  return 0;
 }
