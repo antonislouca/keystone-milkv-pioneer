@@ -1,0 +1,168 @@
+//******************************************************************************
+// Copyright (c) 2018, The Regents of the University of California (Regents).
+// All Rights Reserved. See LICENSE for license details.
+//------------------------------------------------------------------------------
+#include "verifier.h"
+
+#include <getopt.h>
+#include <stdlib.h>
+
+#include <cerrno>
+#include <cstdio>
+#include <functional>
+#include <iostream>
+#include <stdexcept>
+#include <string.h>
+#include <string>
+
+#include "../host/host.h"
+#include "host/hash_util.hpp"
+#include "host/keystone.h"
+#include "verifier/report.h"
+#include "verifier/test_dev_key.h"
+
+void Verifier::run() {
+  const std::string nonce = std::to_string(random() % 0x100000000);
+  printf("Nonce: %s\n", nonce.c_str());
+
+  printf("[Verifier] Waiting for report\n");
+  std::string input;
+  std::string line;
+
+  while (std::getline(std::cin, line)) {
+    input += line + "\n";
+  }
+
+  if (input.empty()) {
+    printf("[Verifier] No input provided. Exiting.\n");
+    return;
+  }
+
+  Report report;
+  report.fromJson(input);
+  verify_report(report, nonce);
+}
+
+void __print_bytes(const byte *buf, size_t buf_len) {
+  for (size_t i = 0; i < buf_len; i += 1) {
+    printf("%02x ", *(buf + i));
+  }
+  printf("\n");
+}
+void Verifier::verify_report(Report &report, const std::string &nonce) {
+  debug_verify(report, _sanctum_dev_public_key);
+
+  byte expected_enclave_hash[MDSIZE];
+  compute_expected_enclave_hash(expected_enclave_hash);
+
+  byte expected_sm_hash[MDSIZE];
+  compute_expected_sm_hash(expected_sm_hash);
+
+  printf("==================DEBUG===================\n");
+  printf("_sanctum_dev_public_key: ");
+  __print_bytes(_sanctum_dev_public_key, _sanctum_dev_public_key_len);
+  printf("Expexcted enclave hash: ");
+  __print_bytes(expected_enclave_hash, MDSIZE);
+  printf("Expexcted sm hash: ");
+  __print_bytes(expected_sm_hash, MDSIZE);
+  printf("==================DEBUG===================\n");
+
+  verify_hashes(report, expected_enclave_hash, expected_sm_hash,
+                _sanctum_dev_public_key);
+
+  verify_data(report, nonce);
+}
+
+void Verifier::verify_hashes(Report &report, const byte *expected_enclave_hash,
+                             const byte *expected_sm_hash,
+                             const byte *dev_public_key) {
+  if (report.verify(expected_enclave_hash, expected_sm_hash, dev_public_key)) {
+    printf("Enclave and SM hashes match with expected.\n");
+  } else {
+    printf("Either the enclave hash or the SM hash (or both) does not "
+           "match with expected.\n");
+    report.printPretty();
+  }
+}
+
+void Verifier::verify_data(Report &report, const std::string &nonce) {
+  if (report.getDataSize() != nonce.length() + 1) {
+    const char error[] =
+        "The size of the data in the report is not equal to the size of the "
+        "nonce initially sent.";
+    printf(error);
+    report.printPretty();
+    throw std::runtime_error(error);
+  }
+
+  if (0 == strcmp(nonce.c_str(), (char *)report.getDataSection())) {
+    printf("Returned data in the report match with the nonce sent.\n");
+  } else {
+    printf("Returned data in the report do NOT match with the nonce sent.\n");
+  }
+}
+
+void Verifier::compute_expected_enclave_hash(byte *expected_enclave_hash) {
+  Keystone::Enclave::measure((char *)expected_enclave_hash, eapp_file_.c_str(),
+                             rt_file_.c_str(), ld_file_.c_str());
+}
+
+void Verifier::compute_expected_sm_hash(byte *expected_sm_hash) {
+  // It is important to make sure the size of the SM buffer we are
+  // measuring is the same as the size of the SM buffer allocated by
+  // the bootloader. See keystone/bootrom/bootloader.c for how it is
+  // computed in the bootloader.
+  const size_t sanctum_sm_size = 0x000419a0;
+  std::vector<byte> sm_content(sanctum_sm_size, 0);
+
+  {
+    printf("SM BIN FILE: %s\n", sm_bin_file_.c_str());
+    // Reading SM content from file.
+    FILE *sm_bin = fopen(sm_bin_file_.c_str(), "rb");
+    if (!sm_bin)
+      throw std::runtime_error("Error opening sm_bin_file_: " + sm_bin_file_ +
+                               ", " + std::strerror(errno));
+    if (fread(sm_content.data(), 1, sm_content.size(), sm_bin) <= 0)
+      throw std::runtime_error("Error reading sm_bin_file_: " + sm_bin_file_ +
+                               ", " + std::strerror(errno));
+    fclose(sm_bin);
+  }
+
+  {
+    printf("SM content size: %d\n", sm_content.size());
+
+    // The actual SM hash computation.
+    hash_ctx_t hash_ctx;
+    hash_init(&hash_ctx);
+    hash_extend(&hash_ctx, sm_content.data(), sm_content.size());
+    hash_finalize(expected_sm_hash, &hash_ctx);
+  }
+}
+
+void Verifier::debug_verify(Report &report, const byte *dev_public_key) {
+  if (report.checkSignaturesOnly(dev_public_key)) {
+    printf("Attestation report SIGNATURE is valid\n");
+  } else {
+    printf("Attestation report is invalid\n");
+  }
+}
+
+int main(int argc, char *argv[]) {
+
+  printf("[Verifier]...\n");
+  if (argc != 5) {
+    printf("[Verifier] Not enough arguments provided\n");
+    return -1;
+  }
+
+  const std::string eapp_file = argv[1];
+  const std::string rt_file = argv[2];
+  const std::string ld_file = argv[3];
+  const std::string sm_bin_file = argv[4];
+
+  // create and run the verifier with the arguments
+  Verifier verifier{eapp_file, rt_file, ld_file, sm_bin_file};
+  verifier.run();
+
+  return 0;
+}

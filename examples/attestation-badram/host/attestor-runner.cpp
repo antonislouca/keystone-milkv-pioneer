@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
   params.setFreeMemSize(freemem_size);
   params.setUntrustedSize(untrusted_size);
   printf("[Attestor-runner] waiting for nonce value\n");
-  // read nonce from terminal
+  // // read nonce from terminal
   std::string nonce;
   std::string line;
   while (std::getline(std::cin, line))
