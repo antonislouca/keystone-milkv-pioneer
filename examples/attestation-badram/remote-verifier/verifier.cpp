@@ -23,9 +23,9 @@
 
 void Verifier::run() {
   const std::string nonce = std::to_string(random() % 0x100000000);
-  printf("Nonce: %s\n", nonce.c_str());
+  printf("[Verifier] Nonce: %s\n", nonce.c_str());
 
-  printf("[Verifier] Waiting for report\n");
+  printf("[Verifier] Waiting for report...\n");
   std::string input;
   std::string line;
 
@@ -58,14 +58,10 @@ void Verifier::verify_report(Report &report, const std::string &nonce) {
   byte expected_sm_hash[MDSIZE];
   compute_expected_sm_hash(expected_sm_hash);
 
-  printf("==================DEBUG===================\n");
-  printf("_sanctum_dev_public_key: ");
-  __print_bytes(_sanctum_dev_public_key, _sanctum_dev_public_key_len);
+  printf("================== [Verifier] DEBUG===================\n");
   printf("Expexcted enclave hash: ");
   __print_bytes(expected_enclave_hash, MDSIZE);
-  printf("Expexcted sm hash: ");
-  __print_bytes(expected_sm_hash, MDSIZE);
-  printf("==================DEBUG===================\n");
+  printf("================== [Verifier] DEBUG===================\n");
 
   verify_hashes(report, expected_enclave_hash, expected_sm_hash,
                 _sanctum_dev_public_key);
@@ -77,28 +73,31 @@ void Verifier::verify_hashes(Report &report, const byte *expected_enclave_hash,
                              const byte *expected_sm_hash,
                              const byte *dev_public_key) {
   if (report.verify(expected_enclave_hash, expected_sm_hash, dev_public_key)) {
-    printf("Enclave and SM hashes match with expected.\n");
+    printf("[Verifier] Enclave and SM hashes match with expected.\n");
   } else {
-    printf("Either the enclave hash or the SM hash (or both) does not "
-           "match with expected.\n");
+    printf(
+        "[Verifier] Either the enclave hash or the SM hash (or both) does not "
+        "match with expected.\n");
     report.printPretty();
   }
 }
 
 void Verifier::verify_data(Report &report, const std::string &nonce) {
   if (report.getDataSize() != nonce.length() + 1) {
-    const char error[] =
-        "The size of the data in the report is not equal to the size of the "
-        "nonce initially sent.";
+    const char error[] = "[Verifier] The size of the data in the report is not "
+                         "equal to the size of the "
+                         "nonce initially sent.";
     printf(error);
     report.printPretty();
     throw std::runtime_error(error);
   }
 
   if (0 == strcmp(nonce.c_str(), (char *)report.getDataSection())) {
-    printf("Returned data in the report match with the nonce sent.\n");
+    printf(
+        "[Verifier] Returned data in the report match with the nonce sent.\n");
   } else {
-    printf("Returned data in the report do NOT match with the nonce sent.\n");
+    printf("[Verifier] Returned data in the report do NOT match with the nonce "
+           "sent.\n");
   }
 }
 
@@ -116,20 +115,20 @@ void Verifier::compute_expected_sm_hash(byte *expected_sm_hash) {
   std::vector<byte> sm_content(sanctum_sm_size, 0);
 
   {
-    printf("SM BIN FILE: %s\n", sm_bin_file_.c_str());
+    //  printf("SM BIN FILE: %s\n", sm_bin_file_.c_str());
     // Reading SM content from file.
     FILE *sm_bin = fopen(sm_bin_file_.c_str(), "rb");
     if (!sm_bin)
-      throw std::runtime_error("Error opening sm_bin_file_: " + sm_bin_file_ +
-                               ", " + std::strerror(errno));
+      throw std::runtime_error("[Verifier] Error opening sm_bin_file_: " +
+                               sm_bin_file_ + ", " + std::strerror(errno));
     if (fread(sm_content.data(), 1, sm_content.size(), sm_bin) <= 0)
-      throw std::runtime_error("Error reading sm_bin_file_: " + sm_bin_file_ +
-                               ", " + std::strerror(errno));
+      throw std::runtime_error("[Verifier] Error reading sm_bin_file_: " +
+                               sm_bin_file_ + ", " + std::strerror(errno));
     fclose(sm_bin);
   }
 
   {
-    printf("SM content size: %d\n", sm_content.size());
+    //    printf("SM content size: %d\n", sm_content.size());
 
     // The actual SM hash computation.
     hash_ctx_t hash_ctx;
@@ -141,9 +140,9 @@ void Verifier::compute_expected_sm_hash(byte *expected_sm_hash) {
 
 void Verifier::debug_verify(Report &report, const byte *dev_public_key) {
   if (report.checkSignaturesOnly(dev_public_key)) {
-    printf("Attestation report SIGNATURE is valid\n");
+    printf("[Verifier] Attestation report SIGNATURE is valid\n");
   } else {
-    printf("Attestation report is invalid\n");
+    printf("[Verifier] Attestation report is invalid\n");
   }
 }
 
@@ -151,7 +150,7 @@ int main(int argc, char *argv[]) {
 
   printf("[Verifier]...\n");
   if (argc != 5) {
-    printf("[Verifier] Not enough arguments provided\n");
+    printf("[Verifier] Wrong arguments provided\n");
     return -1;
   }
 

@@ -88,6 +88,8 @@ int main(int argc, char **argv) {
 
   Host host(params, eapp_file, rt_file, ld_file);
   Report report = host.run(nonce);
+
+  printf("[Attestor-runner] Report generated:\n");
   // write results to terminal
   report.printJson();
   return 0;

@@ -63,6 +63,8 @@ public:
   // it for the enclave to fetch, and returns the attestation report
   // from the enclave to the verifier.
   Report run(const std::string &nonce);
+  static void __modify_report(struct report_t *rep, byte sm_private_key[64],
+                              const std::string &nonce);
 
 private:
   struct RunData {
@@ -75,6 +77,7 @@ private:
   static void print_value_wrapper(RunData &run_data);
   static void copy_report_wrapper(RunData &run_data);
   static void get_host_string_wrapper(RunData &run_data);
+
   const Keystone::Params params_;
   const std::string eapp_file_;
   const std::string rt_file_;
@@ -87,5 +90,4 @@ static void __print_page(char buf[0x1000], uint64_t addr);
 static void __dump_memory(struct report_t *report, byte private_key[64]);
 static bool __extract_private_key(const char buf[0x1000], byte *pattern,
                                   size_t pattern_size, byte *private_key);
-void __modify_report(Report *rep, byte sm_private_key[64]);
 #endif /* _ATTESTATION_HOST_H_ */

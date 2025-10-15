@@ -5,21 +5,22 @@
 #include "app/eapp_utils.h"
 #include "app/syscall.h"
 #include "edge/edge_common.h"
+#include "string.h"
 
 #define OCALL_PRINT_BUFFER 1
 #define OCALL_PRINT_VALUE 2
 #define OCALL_COPY_REPORT 3
 #define OCALL_GET_STRING 4
 
+char __attribute__((aligned(0x1000))) secret[0x1000];
 int main() {
   struct edge_data retdata;
   ocall(OCALL_GET_STRING, NULL, 0, &retdata, sizeof(struct edge_data));
 
-  for (unsigned long i = 1; i <= 10000; i++) {
-    if (i % 5000 == 0) {
-      ocall(OCALL_PRINT_VALUE, &i, sizeof(unsigned long), 0, 0);
-    }
-  }
+  char deadbeef[4] = {0xde, 0xad, 0xbe, 0xef};
+  memcpy(secret + 0, deadbeef, sizeof(deadbeef));
+
+  ocall(OCALL_PRINT_BUFFER, secret, sizeof(secret), 0, 0);
 
   char nonce[2048];
   if (retdata.size > 2048)

