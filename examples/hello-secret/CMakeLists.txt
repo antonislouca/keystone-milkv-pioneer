@@ -6,6 +6,24 @@ set(package_name "hello-secret.ke")
 set(package_script "./hello-secret-runner hello-secret eyrie-rt loader.bin")
 set(eyrie_plugins "none")
 
+
+set(READ_ALIAS_INC "$ENV{READ_ALIAS_INC}")
+
+if (NOT READ_ALIAS_INC STREQUAL "")
+  message(STATUS "Using READ_ALIAS_INC=${READ_ALIAS_INC}")
+  include_directories(AFTER "${READ_ALIAS_INC}")
+else()
+  message(STATUS "READ_ALIAS_INC not set; external read_alias headers will not be available")
+endif()
+
+set(READ_ALIAS_SRC "$ENV{READ_ALIAS_SRC}")
+
+if (READ_ALIAS_SRC STREQUAL "")
+  message(STATUS "READ_ALIAS_SRC not set; readalias.c will not be compiled into ${host_bin}")
+else()
+  message(STATUS "Using READ_ALIAS_SRC=${READ_ALIAS_SRC}")
+endif()
+
 # eapp
 
 add_executable(${eapp_bin} ${eapp_src})
@@ -13,11 +31,13 @@ target_link_libraries(${eapp_bin} "-nostdlib -static" ${KEYSTONE_LIB_EAPP} ${KEY
 
 target_include_directories(${eapp_bin}
   PUBLIC ${KEYSTONE_SDK_DIR}/include/app
-  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge)
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge
+  PUBLIC ${READ_ALIAS_INC}
+)
 
 # host
 
-add_executable(${host_bin} ${host_src})
+add_executable(${host_bin} ${host_src} ${READ_ALIAS_SRC})
 target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE})
 # add -std=c++11 flag
 set_target_properties(${host_bin}
@@ -25,7 +45,9 @@ set_target_properties(${host_bin}
 )
 target_include_directories(${host_bin}
   PUBLIC ${KEYSTONE_SDK_DIR}/include/host
-  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge)
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge
+  PUBLIC ${READ_ALIAS_INC}
+)
 
 # add target for Eyrie runtime (see keystone.cmake)
 

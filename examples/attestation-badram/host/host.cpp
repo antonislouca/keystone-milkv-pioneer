@@ -59,10 +59,8 @@
 #include "host/hash_util.hpp"
 #include "host/keystone.h"
 #include "verifier/report.h"
-// TODO: add paths to cmakelists
 extern "C" {
-#include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/include/readalias.h"
-#include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/readalias.c"
+#include "readalias.h"
 }
 
 #define OCALL_PRINT_BUFFER 1

@@ -11,12 +11,8 @@
 #include <sys/types.h>
 
 extern "C" {
-#include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/include/readalias.h"
-#include "/home/alouka/Documents/repos/badram-riscv/alias-reversing/modules/read_alias/readalias.c"
-// #include
-// "/home/alouka/Documents/repos/badram-riscv/common-code/include/parse_pagemap.h"
-// #include
-// "/home/alouka/Documents/repos/badram-riscv/common-code/parse_pagemap.c"
+// #include "readalias.c"
+#include "readalias.h"
 }
 unsigned long print_string(char *str);
 void print_string_wrapper(void *buffer);
@@ -164,28 +160,3 @@ void print_string_wrapper(void *buffer) {
   /* This will now eventually return control to the enclave */
   return;
 }
-// debian@debian-pioneer:~/keystone-examples$ sudo ./hello-secret.ke && sudo
-// ./hello-secret.ke
-// Verifying archive integrity... MD5 checksums are OK. All
-// good. Uncompressing Keystone Enclave Package Buffer pointer: 0x3fb5f8a000
-// Reading secret with badram
-//   Test-success at buffer: [0x907042000]
-//   Test-success at buffer: [0x907043000]
-//
-// Verifying archive integrity... MD5 checksums are OK. All good.
-// Uncompressing Keystone Enclave Package
-// Buffer pointer: 0x3fa819a000
-// Reading secret with badram
-//   Test-success at buffer: [0x907042000]
-//   Test-success at buffer: [0x907043000]
-//
-// debian@debian-pioneer:~/keystone-examples$ sudo dmesg |tail -10
-//[157163.454881] Opened module.
-//[157163.461233] Enclave Paddr: [0x0000000107000000] -- Vaddr
-//[ffffffd907000000] -- size: [2097152] -- is-cma: [false]
-//[157815.118818] Closed module.
-//[157815.351843] Opened module.
-//
-//[157815.358252] Enclave Paddr: [0x0000000107000000] -- Vaddr
-//[ffffffd907000000] -- size: [2097152] -- is-cma: [false]
-//[158467.101153] Closed module.

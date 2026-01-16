@@ -23,6 +23,9 @@ export BUILDDIR                 ?= $(KEYSTONE)/build-$(KEYSTONE_PLATFORM)$(KEYST
 export BUILDROOT_OVERLAYDIR     ?= $(BUILDDIR)/overlay
 export BUILDROOT_BUILDDIR       ?= $(BUILDDIR)/buildroot.build
 
+export KEYSTONE_PARENT ?= $(abspath $(KEYSTONE)/..)
+export READ_ALIAS_INC ?= $(KEYSTONE_PARENT)/alias-reversing/modules/read_alias/include
+export READ_ALIAS_SRC ?= $(KEYSTONE_PARENT)/alias-reversing/modules/read_alias/readalias.c
 
 # options: generic, cva6, hifive_unmatched, mpfs
 export KEYSTONE_PLATFORM        ?= generic

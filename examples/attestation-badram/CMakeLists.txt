@@ -14,17 +14,37 @@ endif()
 get_filename_component(fw_file ${fw_bin} NAME)
 set(package_script "./attestor-runner-badram attestor-badram eyrie-rt loader.bin --sm-bin ${fw_file}")
 
+set(READ_ALIAS_INC "$ENV{READ_ALIAS_INC}")
+
+if (NOT READ_ALIAS_INC STREQUAL "")
+  message(STATUS "Using READ_ALIAS_INC=${READ_ALIAS_INC}")
+  include_directories(AFTER "${READ_ALIAS_INC}")
+else()
+  message(STATUS "READ_ALIAS_INC not set; external read_alias headers will not be available")
+endif()
+
+set(READ_ALIAS_SRC "$ENV{READ_ALIAS_SRC}")
+
+if (READ_ALIAS_SRC STREQUAL "")
+  message(STATUS "READ_ALIAS_SRC not set; readalias.c will not be compiled into ${host_bin}")
+else()
+  message(STATUS "Using READ_ALIAS_SRC=${READ_ALIAS_SRC}")
+endif()
+
+
 # eapp
 
 add_executable(${eapp_bin} ${eapp_src})
 target_link_libraries(${eapp_bin} "-nostdlib -static" ${KEYSTONE_LIB_EAPP} ${KEYSTONE_LIB_EDGE})
 target_include_directories(${eapp_bin}
   PUBLIC ${KEYSTONE_SDK_DIR}/include/app
-  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge)
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/edge
+  PUBLIC ${READ_ALIAS_INC}
+)
 
 # host
 
-add_executable(${host_bin} ${host_src})
+add_executable(${host_bin} ${host_src} ${READ_ALIAS_SRC})
 target_link_libraries(${host_bin}
   ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER})
 set_target_properties(${host_bin}
@@ -34,7 +54,9 @@ target_include_directories(${host_bin}
   PUBLIC ${KEYSTONE_SDK_DIR}/include/common
   PUBLIC ${KEYSTONE_SDK_DIR}/include/host
   PUBLIC ${KEYSTONE_SDK_DIR}/include/edge
-  PUBLIC ${KEYSTONE_SDK_DIR}/include/verifier)
+  PUBLIC ${KEYSTONE_SDK_DIR}/include/verifier
+  PUBLIC ${READ_ALIAS_INC}
+)
 
 
 # verifier
