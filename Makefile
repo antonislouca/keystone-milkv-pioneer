@@ -30,6 +30,7 @@ export READ_ALIAS_SRC ?= $(KEYSTONE_PARENT)/alias-reversing/modules/read_alias/r
 # options: generic, cva6, hifive_unmatched, mpfs
 export KEYSTONE_PLATFORM        ?= generic
 export KEYSTONE_BITS            ?= 64
+export KEYSTONE_SELECTED_EXAMPLES ?= 
 
 include mkutils/args.mk
 include mkutils/log.mk

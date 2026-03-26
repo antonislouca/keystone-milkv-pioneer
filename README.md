@@ -1,3 +1,26 @@
+# Quick Start: Selective Example Compilation
+
+Selective compilation of examples using the `KEYSTONE_SELECTED_EXAMPLES` flag.
+
+### Compilation Options
+
+1. **Build Default Examples** (hello, hello-native, tests):
+   ```bash
+   KEYSTONE_PLATFORM=generic BUILDROOT_TARGET=all make -j$(nproc)
+   ```
+
+2. **Build BadRAM-specific Examples** (hello-secret, attestation-goodram, attestation-badram):
+   ```bash
+   KEYSTONE_PLATFORM=generic KEYSTONE_SELECTED_EXAMPLES=badram-examples BUILDROOT_TARGET=all make -j$(nproc)
+   ```
+
+3. **Build All Examples**:
+   ```bash
+   KEYSTONE_PLATFORM=generic KEYSTONE_SELECTED_EXAMPLES=all BUILDROOT_TARGET=all make -j$(nproc)
+   ```
+
+---
+
 # Keystone: An Open-Source Secure Enclave Framework for RISC-V Processors
 
 ![Documentation Status](https://readthedocs.org/projects/keystone-enclave/badge/)
