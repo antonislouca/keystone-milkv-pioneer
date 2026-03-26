@@ -20,7 +20,8 @@ endif
 
 KEYSTONE_EXAMPLES_CONF_OPTS += -DKEYSTONE_SDK_DIR=$(HOST_DIR)/usr/share/keystone/sdk \
                                 -DKEYSTONE_EYRIE_RUNTIME=$(KEYSTONE_RUNTIME_BUILDDIR) \
-                                -DKEYSTONE_BITS=${KEYSTONE_BITS}
+                                -DKEYSTONE_BITS=${KEYSTONE_BITS} \
+                                -DKEYSTONE_SELECTED_EXAMPLES="$(KEYSTONE_SELECTED_EXAMPLES)"
 ifeq ($(KEYSTONE_PLATFORM),cva6)
 KEYSTONE_EXAMPLES_CONF_OPTS += -Dfw_bin=$(BINARIES_DIR)/fw_payload.bin
 endif

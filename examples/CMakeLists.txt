@@ -30,11 +30,34 @@ set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
 # create a phony target "examples"
 add_custom_target("examples")
 
-# add all examples below
-add_subdirectory(hello)
-add_subdirectory(hello-native)
-add_subdirectory(hello-secret)
-add_subdirectory(attestation-goodram)
-add_subdirectory(attestation-badram)
-#add_subdirectory(attestation-attack)
-add_subdirectory(tests)
+# Define example sets
+set(BADRAM_EXAMPLES
+  hello-secret
+  attestation-goodram
+  attestation-badram
+)
+
+set(OTHER_EXAMPLES
+  hello
+  hello-native
+  tests
+)
+
+# Selection logic
+if ("${KEYSTONE_SELECTED_EXAMPLES}" STREQUAL "badram-examples")
+  set(EXAMPLES_TO_BUILD ${BADRAM_EXAMPLES})
+elseif ("${KEYSTONE_SELECTED_EXAMPLES}" STREQUAL "all")
+  set(EXAMPLES_TO_BUILD ${BADRAM_EXAMPLES} ${OTHER_EXAMPLES})
+else()
+  # Default/Fallback: build only the "rest" of the examples
+  set(EXAMPLES_TO_BUILD ${OTHER_EXAMPLES})
+endif()
+
+# add all selected examples below
+foreach(example ${EXAMPLES_TO_BUILD})
+  if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${example}/CMakeLists.txt)
+    add_subdirectory(${example})
+  else()
+    message(WARNING "Example '${example}' not found or missing CMakeLists.txt")
+  endif()
+endforeach()
